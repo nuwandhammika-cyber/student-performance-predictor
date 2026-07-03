@@ -1,103 +1,89 @@
 import streamlit as st
 import pandas as pd
-import pickle
+import joblib
 
-# =========================
-# Load trained model safely
-# =========================
-with open("model.pkl", "rb") as f:
-    model = pickle.load(f)
+# Load full pipeline
+model = joblib.load("model.pkl")
 
-st.set_page_config(page_title="Online Shopper Intention Predictor", layout="centered")
+st.set_page_config(page_title="Online Shopper Predictor", layout="centered")
 
 st.title("🛒 Online Shopper Intention Predictor")
-st.write("Predict whether a visitor will generate revenue based on session behavior.")
+
+st.write("Enter session details to predict purchase behavior")
 
 st.markdown("---")
 
-# =========================
-# User Inputs (REAL FEATURES ONLY)
-# =========================
+# ======================
+# INPUTS (MATCH DATASET)
+# ======================
 
-administrative = st.number_input("Administrative Pages", min_value=0, value=0)
-administrative_duration = st.number_input("Administrative Duration", min_value=0.0, value=0.0)
+Administrative = st.number_input("Administrative", 0)
+Administrative_Duration = st.number_input("Administrative Duration", 0.0)
 
-informational = st.number_input("Informational Pages", min_value=0, value=0)
-informational_duration = st.number_input("Informational Duration", min_value=0.0, value=0.0)
+Informational = st.number_input("Informational", 0)
+Informational_Duration = st.number_input("Informational Duration", 0.0)
 
-product_related = st.number_input("Product Related Pages", min_value=0, value=0)
-product_related_duration = st.number_input("Product Related Duration", min_value=0.0, value=0.0)
+ProductRelated = st.number_input("Product Related", 0)
+ProductRelated_Duration = st.number_input("Product Related Duration", 0.0)
 
-bounce_rates = st.slider("Bounce Rate", 0.0, 1.0, 0.01)
-exit_rates = st.slider("Exit Rate", 0.0, 1.0, 0.01)
-page_values = st.number_input("Page Value", min_value=0.0, value=0.0)
+BounceRates = st.number_input("Bounce Rates", 0.0)
+ExitRates = st.number_input("Exit Rates", 0.0)
+PageValues = st.number_input("Page Values", 0.0)
 
-special_day = st.slider("Special Day", 0.0, 1.0, 0.0)
+SpecialDay = st.number_input("Special Day", 0.0)
 
-# Month encoding (common dataset feature)
-month = st.selectbox(
-    "Month",
-    ["Jan", "Feb", "Mar", "Apr", "May", "June", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+Month = st.selectbox("Month",
+    ["Jan","Feb","Mar","Apr","May","June","Jul","Aug","Sep","Oct","Nov","Dec"]
 )
 
-# Weekend feature
-weekend = st.selectbox("Weekend Session?", ["No", "Yes"])
+OperatingSystems = st.number_input("Operating Systems", 1)
+Browser = st.number_input("Browser", 1)
+Region = st.number_input("Region", 1)
+TrafficType = st.number_input("Traffic Type", 1)
 
-# Visitor type
-visitor_type = st.selectbox("Visitor Type", ["New_Visitor", "Returning_Visitor", "Other"])
+VisitorType = st.selectbox("Visitor Type",
+    ["Returning_Visitor", "New_Visitor", "Other"]
+)
 
-st.markdown("---")
+Weekend = st.selectbox("Weekend", ["True", "False"])
 
-# =========================
-# Encoding categorical values
-# =========================
-month_map = {
-    "Jan": 1, "Feb": 2, "Mar": 3, "Apr": 4,
-    "May": 5, "June": 6, "Jul": 7, "Aug": 8,
-    "Sep": 9, "Oct": 10, "Nov": 11, "Dec": 12
-}
+# ======================
+# CREATE DATAFRAME (SAFE)
+# ======================
 
-weekend_val = 1 if weekend == "Yes" else 0
+input_data = pd.DataFrame([{
+    "Administrative": Administrative,
+    "Administrative_Duration": Administrative_Duration,
+    "Informational": Informational,
+    "Informational_Duration": Informational_Duration,
+    "ProductRelated": ProductRelated,
+    "ProductRelated_Duration": ProductRelated_Duration,
+    "BounceRates": BounceRates,
+    "ExitRates": ExitRates,
+    "PageValues": PageValues,
+    "SpecialDay": SpecialDay,
+    "Month": Month,
+    "OperatingSystems": OperatingSystems,
+    "Browser": Browser,
+    "Region": Region,
+    "TrafficType": TrafficType,
+    "VisitorType": VisitorType,
+    "Weekend": Weekend
+}])
 
-visitor_map = {
-    "New_Visitor": 0,
-    "Returning_Visitor": 1,
-    "Other": 2
-}
+# ======================
+# PREDICTION
+# ======================
 
-# =========================
-# Create input DataFrame
-# IMPORTANT: must match training features
-# =========================
-input_data = pd.DataFrame([[
-    administrative,
-    administrative_duration,
-    informational,
-    informational_duration,
-    product_related,
-    product_related_duration,
-    bounce_rates,
-    exit_rates,
-    page_values,
-    special_day,
-    month_map[month],
-    weekend_val,
-    visitor_map[visitor_type]
-]], columns=model.feature_names_in_)
-
-# =========================
-# Prediction
-# =========================
-if st.button("🔍 Predict Purchase Intent"):
+if st.button("Predict"):
 
     prediction = model.predict(input_data)
 
-    # Probability (if model supports it)
     if hasattr(model, "predict_proba"):
         prob = model.predict_proba(input_data)[0][1]
-        st.write(f"### 📊 Purchase Probability: {prob * 100:.2f}%")
+        st.write(f"Probability of Purchase: {prob:.2f}")
 
-    if prediction[0] == 1:
-        st.success("✅ The visitor is likely to generate revenue!")
+    if prediction[0]:
+        st.success("Customer WILL purchase")
     else:
-        st.error("❌ The visitor is unlikely to generate revenue.")
+        st.error("Customer will NOT purchase")
